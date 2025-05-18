@@ -1,0 +1,7 @@
+matplotlib
+pandas
+numpy
+scipy
+scikit-learn
+sentence-transformers
+tqdm

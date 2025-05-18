@@ -1,0 +1,1 @@
+from ..algorithms.content_based_filtering import ContentBasedFiltering
