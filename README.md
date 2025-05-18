@@ -4,18 +4,9 @@ In this repo, we'll implement multiple recommendation system algorithms from scr
 
 #### List of implemented algorithms:
 1. Apriori
-2. Hashtree
+2. Hashtree apriori
 3. Collaborative filtering (item-based or user-based)
-4. Alternating Least Squares (ALS) / SVD++
-
-For no.3 and no.4 algorithm, we'll have to create embedding for text data. Here's the embedding scheme that we'll implement:
-- Movie genres: one-hot encoding
-- User tags for movie: GLoVe or BM25
-
-A movie will be embedded by concatenation of the following features:
-
-- Reduced PCA representation of genre ohe
-- Average of user-tag embeddings (Honestly I'm not sure about this part: there are tags that differs in semantics in a very delicate way, and there are tags that is a phrase, not a single word. Plus we are discouraged to use neuron-based embedding models here).
+4. Content-based filtering
 
 ### Dataset structure
 
