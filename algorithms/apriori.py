@@ -5,9 +5,10 @@ import time
 import pickle
 
 class Apriori:
-    def __init__(self, min_support=0.01, min_confidence=0.5):
+    def __init__(self, min_support=0.01, min_confidence=0.5, generate_rules=False):
         self.min_support = min_support
         self.min_confidence = min_confidence
+        self.generate_rules = generate_rules
         self.frequent_itemsets = []
         self.rules = []
     
@@ -74,14 +75,21 @@ class Apriori:
             
             # find frequent k-itemsets
             frequent_k = []
+            num_k_frequent_itemsets = 0
             for candidate in candidates:
                 support = self._get_support(candidate, transactions)
                 if support >= self.min_support:
                     frequent_k.append(candidate)
                     self.frequent_itemsets.append((candidate, support))
+                    num_k_frequent_itemsets += 1
+            
+            print(f"Generated {num_k_frequent_itemsets} frequent {k}-itemsets")
+            print('='*20)
         
-        print(f"Generated {len(self.frequent_itemsets)} frequent {k}-itemsets")
-        print('='*20)
+        if self.generate_rules:
+            self._generate_rules()
+    
+    def _generate_rules(self):
         # Generate association rules
         for itemset, support in self.frequent_itemsets:
             if len(itemset) > 1:
@@ -104,7 +112,7 @@ class Apriori:
                             if confidence >= self.min_confidence:
                                 self.rules.append((condition, consequent, support, confidence))
         
-        return self
+        print(f"Generated {len(self.rules)} association rules")
     
     def get_frequent_itemsets(self) -> list:
         """Return frequent itemsets sorted by support"""

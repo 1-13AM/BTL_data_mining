@@ -2,6 +2,12 @@
 import pandas as pd
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from typing import List
+import spacy
+from collections import defaultdict
+import os
+import pickle
+import time
 
 def concatenate_movie_tags(
     movies_file:str='data/movie.csv',
@@ -117,14 +123,13 @@ def summarize_missing_values(file_paths:dict[str, str]) -> pd.DataFrame:
     return summary_df
 
 def create_user_item_matrix(
-    ratings_file:str='data/ratings.csv',
-    movies_file:str='data/movies.csv'
+    ratings_file:str='data/ratings.csv'
     # min_ratings:int=50
 ) -> np.ndarray:
     """
     return a user-item matrix with shape (num_users, num_items)
     """
-    ratings = pd.read_csv(ratings_file, nrows=100000)
+    ratings = pd.read_csv(ratings_file, nrows=1000000)
     
     
     # filter movies with less than min_ratings
@@ -135,6 +140,107 @@ def create_user_item_matrix(
     # user_item_matrix = user_item_matrix[movies_with_ratings]
     
     return user_item_matrix.to_numpy()
+
+def create_transactions(file_path, rating_threshold=3.5, chunk_size=100000, save_path=None):
+    """
+    Convert movie ratings into transaction format for association rule mining
+    
+    Parameters:
+    - file_path: Path to the rating.csv file
+    - rating_threshold: Minimum rating to consider a movie as "liked" (default: 3.5)
+    - save_path: Optional path to save the transactions for reuse
+    
+    Returns:
+    - List of sets, where each set contains movie IDs that a user liked
+    """
+    print(f"Loading transactions from {file_path} with threshold {rating_threshold}...")
+    
+    # Check if saved transactions exist
+    if save_path and os.path.exists(save_path):
+        print(f"Loading pre-processed transactions from {save_path}...")
+        with open(save_path, 'rb') as f:
+            transaction_list = pickle.load(f)
+        print(f"Loaded {len(transaction_list)} transactions")
+        return transaction_list
+    
+    # read data in chunks
+    chunks = pd.read_csv(file_path, chunksize=chunk_size)
+    
+    transactions = defaultdict(set)
+    total_ratings = 0
+    
+    for i, chunk in enumerate(chunks):
+        if i >= 1:
+            break
+        print(f"Processing chunk {i+1}...")
+        # only consider the ratings above threshold
+        filtered_chunk = chunk[chunk['rating'] >= rating_threshold]
+        
+        for _, row in filtered_chunk.iterrows():
+            try:
+                transactions[row['userId']].add(row['movieId'].item())
+            except:
+               transactions[row['userId']].add(row['movieId'])
+            
+        total_ratings += len(chunk)
+    
+    transaction_list = list(transactions.values())
+    
+    transaction_list = [sorted(t) for t in transaction_list if len(t) > 0]
+    
+    print(f"Created {len(transaction_list)} transactions from {total_ratings} ratings")
+    
+    # Save transactions if path is provided
+    if save_path:
+        save_dir = os.path.dirname(save_path)
+        if save_dir and not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        
+        print(f"Saving transactions to {save_path}...")
+        with open(save_path, 'wb') as f:
+            pickle.dump(transaction_list, f)
+    
+    return transaction_list
+
+def filter_with_spacy_ner(tags: List[str]) -> List[str]:
+    """
+    Remove named entities using spaCy NER
+    
+    Parameters:
+    -----------
+    tags : List[str]
+        List of tags to filter
+        
+    Returns:
+    --------
+    List[str]
+        Filtered tags without named entities
+    """
+    nlp = spacy.load("en_core_web_sm")
+    if nlp is None:
+        return tags
+    
+    filtered_tags = []
+    
+    for tag in tags:
+        doc = nlp(tag)
+        
+        # Check if the tag contains named entities
+        has_named_entity = False
+        for ent in doc.ents:
+            if ent.label_ in ['PERSON', 'ORG', 'GPE', 'WORK_OF_ART', 'EVENT', 'FAC', 'NORP']:
+                has_named_entity = True
+                break
+        
+        if not has_named_entity:
+            words = tag.split()
+            if len(words) >= 2 and all(word[0].isupper() for word in words if word):
+                has_named_entity = True
+        
+        if not has_named_entity:
+            filtered_tags.append(tag)
+    
+    return filtered_tags
 
 def embed_text(model:SentenceTransformer, text:str) -> np.ndarray:
     return model.encode(text)

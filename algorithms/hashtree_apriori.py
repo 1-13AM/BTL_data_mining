@@ -2,8 +2,6 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations
 import time
-import pickle
-import hashlib
 from .apriori import Apriori
 from typing import List
 
@@ -45,34 +43,50 @@ class HashTreeNode:
     def _hash(self, itemset: set):
         sorted_itemset = sorted(list(itemset))
         return hash(sorted_itemset[self.depth - 1]) % 10
-    
-    def get_subsets(self, transaction: set, k: int):
-        """Get all k-itemsets in the tree that are contained in the transaction"""
+
+    def get_subsets(self, transaction: set, k: int) -> List[set]:
+        """
+        Get all k-itemsets (candidates) stored in the tree that are also 
+        subsets of the given transaction.
+        """
         results = []
-        
-        if self.is_leaf:
-            # check every itemset in the leaf node
-            for itemset in self.items:
-                if all(item in transaction for item in itemset):
-                    results.append(itemset)
-        else:
-            # check the appropriate children
-            # keep track of the children hashes that have been processed in this call
-            processed_children_hashes = set() 
-            for item_from_transaction in transaction:
-                h_of_tx_item = hash(item_from_transaction) % 10
-                if h_of_tx_item in self.children and h_of_tx_item not in processed_children_hashes:
-                    results.extend(self.children[h_of_tx_item].get_subsets(transaction, k))
-                    processed_children_hashes.add(h_of_tx_item)
+
+        sorted_transaction_list = sorted(list(transaction))
+        for subset_tuple in combinations(sorted_transaction_list, k):
+            
+            if self._contains_candidate(subset_tuple):
+                # If the candidate exists in the tree, add its set version to results.
+                results.append(set(subset_tuple))
         
         return results
 
+    def _contains_candidate(self, candidate: List[int]) -> bool:
+        """
+        Checks if a specific, sorted candidate k-itemset exists in this
+        node or its descendants.
+        """
+        
+        if self.is_leaf:
+            return set(candidate) in self.items
+        else:
+            if self.depth > len(candidate):
+                return False
+            
+            hash_key = hash(candidate[self.depth - 1]) % 10 
+
+            if hash_key in self.children:
+                return self.children[hash_key]._contains_candidate(candidate)
+            else:
+                return False
+
 
 class HashTreeApriori(Apriori):
-    def __init__(self, min_support: float = 0.01, min_confidence: float = 0.5, max_leaf_size: int = 10, max_depth: int = 3):
+    def __init__(self, min_support: float = 0.01, min_confidence: float = 0.5, max_leaf_size: int = 10, max_depth: int = 3, generate_rules: bool = False):
         super().__init__(min_support, min_confidence)
         self.max_leaf_size = max_leaf_size
         self.max_depth = max_depth
+        self.rules = []
+        self.generate_rules = generate_rules
     
     def _build_hash_tree(self, candidates: List[set]):
         """Build a hash tree from candidate itemsets"""
@@ -101,7 +115,6 @@ class HashTreeApriori(Apriori):
     
     def fit(self, transactions: List[set]):
         """Find frequent itemsets and association rules using hash tree"""
-        start_time = time.time()
         
         # Find all unique items
         unique_items = set()
@@ -142,7 +155,7 @@ class HashTreeApriori(Apriori):
                     
                     # Merge itemsets
                     union = itemset1.union(itemset2)
-                    if len(union) == k:
+                    if len(union) == k and union not in candidates:
                         
                         all_subsets_frequent = True
                         for subset in combinations(union, k-1):
@@ -157,7 +170,6 @@ class HashTreeApriori(Apriori):
                 break
             
             print(f"Generated {len(candidates)} candidate {k}-itemsets")
-            print('='*20)
             
             # Build hash tree for candidates
             hash_tree = self._build_hash_tree(candidates)
@@ -174,30 +186,6 @@ class HashTreeApriori(Apriori):
                     self.frequent_itemsets.append((candidate, support))
             
             print(f"Found {len(frequent_k)} frequent {k}-itemsets")
-        
-        # generate association rules (same as Apriori)
-        for itemset, support in self.frequent_itemsets:
-            if len(itemset) > 1:
-                for i in range(1, len(itemset)):
-                    for conditional_items in combinations(itemset, i):
-                        condition = set(conditional_items)
-                        consequent = itemset - condition
-                        
-                        # Find support of condition
-                        condition_support = None
-                        for item_set, supp in self.frequent_itemsets:
-                            if item_set == condition:
-                                condition_support = supp
-                                break
-                        
-                        if condition_support:
-                            # Calculate confidence
-                            confidence = support / condition_support
-                            
-                            if confidence >= self.min_confidence:
-                                self.rules.append((condition, consequent, support, confidence))
-        
-        print(f"Generated {len(self.rules)} association rules")
-        print(f"Total runtime: {time.time() - start_time:.2f} seconds")
-        
-        return self
+            print('='*20)
+            if self.generate_rules:
+                super()._generate_rules()
