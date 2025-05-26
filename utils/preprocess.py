@@ -124,7 +124,6 @@ def summarize_missing_values(file_paths:dict[str, str]) -> pd.DataFrame:
 
 def create_user_item_matrix(
     ratings_file:str='data/ratings.csv'
-    # min_ratings:int=50
 ) -> np.ndarray:
     """
     return a user-item matrix with shape (num_users, num_items)
@@ -132,13 +131,7 @@ def create_user_item_matrix(
     ratings = pd.read_csv(ratings_file, nrows=1000000)
     
     
-    # filter movies with less than min_ratings
-    # movies_with_ratings = ratings['movieId'].value_counts() >= min_ratings
-    # movies_with_ratings = movies_with_ratings[movies_with_ratings].index.tolist()
     user_item_matrix = ratings.pivot(index='userId', columns='movieId', values='rating')
-    
-    # user_item_matrix = user_item_matrix[movies_with_ratings]
-    
     return user_item_matrix.to_numpy()
 
 def create_transactions(file_path, rating_threshold=3.5, chunk_size=100000, save_path=None):

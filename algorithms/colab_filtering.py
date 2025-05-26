@@ -21,9 +21,8 @@ class ColabFiltering:
         self.mask_matrix = ~np.isnan(self.user_item_matrix)
         
         # precompute mask & zero-filled version
-        mask_mat = ~np.isnan(self.user_item_matrix)
+        mask_mat = self.mask_matrix.copy()
         uim0 = np.nan_to_num(self.user_item_matrix, 0.0)
-        mean_rating = np.nanmean(self.user_item_matrix)
 
         if self.strategy=='item_based':
             uim = uim0.T
@@ -49,7 +48,7 @@ class ColabFiltering:
             
             # replace nan values with mean rating (excluding filled values) or -1
             # pred = np.where(denom>0, nom/denom, mean_rating)
-            pred = np.where(denom>0, nom/denom, -1)
+            pred = np.where(denom>0, nom/denom, -np.inf)
             
             if self.strategy=='user_based':
                 missing = ~mask_mat[i, :]         
@@ -69,7 +68,7 @@ class ColabFiltering:
         recommend the top k items for the given user
         """
         
-        return np.argsort(np.where(self.mask_matrix[user_id], self.user_item_matrix[user_id], -1))[::-1][:top_k]
+        return np.argsort(np.where(self.mask_matrix[user_id], self.user_item_matrix[user_id], -np.inf))[::-1][:top_k]
         
     def save_results(self, filepath:str):
         """
