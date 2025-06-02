@@ -40,6 +40,7 @@ class ColabFiltering:
             row[i] = -np.inf
             top_ks = np.argsort(row)[-self.k:]
             
+            # is this operation correct?
             Rk   = uim[top_ks, :]            # (k, n_items)
             mk   = mask[top_ks, :]           # (k, n_items)
             w    = sim[i, top_ks][:, None]    # (k,1)
@@ -68,7 +69,7 @@ class ColabFiltering:
         recommend the top k items for the given user
         """
         
-        return np.argsort(np.where(self.mask_matrix[user_id], self.user_item_matrix[user_id], -np.inf))[::-1][:top_k]
+        return np.argsort(np.where(~self.mask_matrix[user_id], self.user_item_matrix[user_id], -np.inf))[::-1][:top_k]
         
     def save_results(self, filepath:str):
         """

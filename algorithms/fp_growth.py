@@ -40,9 +40,7 @@ class FPTree:
         for item in self.frequent_items:
             self.header_table[item] = None
         
-        # Build FP-tree
         for transaction in transactions:
-            # Filter and sort transaction items by frequency
             filtered_items = [item for item in transaction if item in self.frequent_items]
             filtered_items.sort(key=lambda x: item_counts[x], reverse=True)
             
@@ -55,14 +53,12 @@ class FPTree:
             
         first = items[0]
         child = node.children.get(first)
-        
         if child is not None:
             child.increase_count()
         else:
             child = FPNode(first, 1, node)
             node.children[first] = child
             self._update_header(child)
-        
         remaining_items = items[1:]
         if remaining_items:
             self._insert_tree(remaining_items, child)
@@ -118,8 +114,6 @@ class FPGrowth:
         for item in reversed(fp_tree.frequent_items):
             # Create new frequent itemset
             new_itemset = alpha | {item}
-            
-            # Calculate support for this item
             support_count = 0
             node = fp_tree.header_table.get(item)
             while node is not None:
@@ -127,13 +121,11 @@ class FPGrowth:
                 node = node.node_link
             
             support = support_count / self.num_transactions
-            
             if support >= self.min_support:
                 frequent_itemsets.append((new_itemset, support))
             
             # Get conditional pattern base
             prefix_paths = fp_tree._get_prefix_paths(item)
-            
             if prefix_paths:
                 # Create conditional transactions
                 conditional_transactions = []
@@ -141,11 +133,8 @@ class FPGrowth:
                     for _ in range(count):
                         conditional_transactions.append(path)
                 
-                # Build conditional FP-tree only if we have enough transactions
                 if len(conditional_transactions) >= min_support_count:
                     conditional_tree = FPTree(conditional_transactions, min_support_count)
-                    
-                    # Only recurse if the conditional tree has frequent items
                     if conditional_tree.frequent_items:
                         self._mine_fp_tree(conditional_tree, new_itemset, frequent_itemsets, min_support_count)
     
@@ -156,7 +145,6 @@ class FPGrowth:
         
         # Build initial FP-tree
         fp_tree = FPTree(transactions, min_support_count)
-        
         print(f"Found {len(fp_tree.frequent_items)} frequent items")
 
         # Mine frequent patterns
@@ -165,7 +153,6 @@ class FPGrowth:
         self.frequent_itemsets = frequent_itemsets
         
         print(f"Found {len(self.frequent_itemsets)} frequent itemsets")
-        
         if self.generate_rules:
             self._generate_rules()
     

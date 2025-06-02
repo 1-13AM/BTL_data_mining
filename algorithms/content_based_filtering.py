@@ -7,6 +7,7 @@ import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from typing import List
 
 class ContentBasedFiltering:
@@ -38,7 +39,7 @@ class ContentBasedFiltering:
         recommend the top k items for the given user
         
         Args:
-            user_id: int, the id of the user
+            user_id: int, the id of the user (implicit)
             top_k: int, the number of items to recommend
             similarity_metric: str, the similarity metric to use
         """
@@ -54,7 +55,7 @@ class ContentBasedFiltering:
         recommended_items = []
         for i in top_items:
             item_id = self.item_keys[i]
-            if item_id not in self.user_item_interaction[user_id]:
+            if item_id not in self.user_item_interaction[list(self.user_item_interaction.keys())[user_id]]:
                 recommended_items.append(item_id)
             if len(recommended_items) >= top_k:
                 break
@@ -125,18 +126,21 @@ class ContentBasedFiltering:
             # user_embeddings = self._create_embedding(user_tags, tag_to_embeddings, model_dimension)
             genres_embeddings = self._create_embedding(genres, tag_to_embeddings, model_dimension)
             
-            denom = 0
-            
-            # gotta initialize the embedding for the current movie_id with a zero vector
-            movie_embeddings[movie_id] = np.zeros(model.get_sentence_embedding_dimension())
-            
-            # for embedding in [genome_embeddings, user_embeddings, genres_embeddings]:
-            for embedding in [genome_embeddings, genres_embeddings]:    
-                if np.any(embedding):
-                    movie_embeddings[movie_id] += embedding # otherwise this will raise an error
-                    denom += 1
-            if denom > 0:
-                movie_embeddings[movie_id] /= denom
+            # Give different weights to different sources
+            genome_weight = 0.05
+            genre_weight = 0.95
+
+            total_weight = 0
+            movie_embeddings[movie_id] = np.zeros(model_dimension)
+            if np.any(genome_embeddings):
+                movie_embeddings[movie_id] += genome_weight * genome_embeddings
+                total_weight += genome_weight
+            if np.any(genres_embeddings):
+                movie_embeddings[movie_id] += genre_weight * genres_embeddings
+                total_weight += genre_weight
+
+            if total_weight > 0:
+                movie_embeddings[movie_id] /= total_weight
             
             
         if save_path:
@@ -161,23 +165,28 @@ class ContentBasedFiltering:
         
         _embedding_shape = movie_embeddings[1].shape
         
+        
         for user_id in tqdm(unique_user_ids):
             # Initialize the embedding for the current user_id with a zero vector
             user_embedding[user_id] = np.zeros(_embedding_shape) 
             denom = 0
 
             user_ratings_for_current_user = rating[rating['userId'] == user_id]
-
+            
+            mean_rating = user_ratings_for_current_user['rating'].mean()
+            std_rating = user_ratings_for_current_user['rating'].std()
+            
             for _, rated_row in user_ratings_for_current_user.iterrows():
                 movie_id = rated_row['movieId']
                 actual_rating = rated_row['rating']
                 
                 current_movie_embedding = movie_embeddings[movie_id]
                 
-                if np.any(current_movie_embedding): 
-                    denom += 1
-                    user_embedding[user_id] += actual_rating * current_movie_embedding
-                    
+                if np.any(current_movie_embedding):
+                    normalized_rating = (actual_rating - mean_rating) / std_rating 
+                    user_embedding[user_id] += normalized_rating * current_movie_embedding
+                    denom += actual_rating
+
             if denom > 0:
                 user_embedding[user_id] /= denom
 

@@ -132,7 +132,9 @@ def create_user_item_matrix(
     
     
     user_item_matrix = ratings.pivot(index='userId', columns='movieId', values='rating')
-    return user_item_matrix.to_numpy()
+    user_id_list = user_item_matrix.index.tolist()
+    movie_id_list = user_item_matrix.columns.tolist()
+    return user_item_matrix.to_numpy(), user_id_list, movie_id_list
 
 def create_transactions(file_path, rating_threshold=3.5, chunk_size=100000, save_path=None):
     """

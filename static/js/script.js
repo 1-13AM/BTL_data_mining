@@ -249,4 +249,251 @@ function addTooltips() {
 }
 
 // Initialize tooltips when page loads
-document.addEventListener('DOMContentLoaded', addTooltips); 
+document.addEventListener('DOMContentLoaded', addTooltips);
+
+// Recommendation System Functions
+
+function updateRecommendationValue(value) {
+    document.getElementById('recommendation-value').textContent = value;
+}
+
+// Initialize user dropdown
+function initializeUserDropdown() {
+    const userSelect = document.getElementById('user-select');
+    userSelect.innerHTML = '<option value="">Choose a user...</option>';
+    
+    // Add users 1-1000
+    for (let i = 1; i <= 1000; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `User ${i}`;
+        userSelect.appendChild(option);
+    }
+}
+
+// Load user profile
+async function loadUserProfile() {
+    const userSelect = document.getElementById('user-select');
+    const userId = parseInt(userSelect.value);
+    
+    if (!userId) {
+        showRecommenderError('Please select a user first');
+        return;
+    }
+    
+    const topN = parseInt(document.getElementById('num-recommendations').value);
+    
+    // Show loading states
+    showProfileLoading();
+    hideRecommenderError();
+    hideUserProfile();
+    hideRecommendations();
+    
+    try {
+        // Load user profile
+        const profileResponse = await fetch('/get_user_profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                top_n: topN
+            })
+        });
+        
+        const profileData = await profileResponse.json();
+        
+        if (profileData.success) {
+            displayUserProfile(profileData.top_movies);
+            
+            // Load recommendations
+            await loadRecommendations(userId, topN);
+        } else {
+            showRecommenderError(profileData.error || 'Failed to load user profile');
+        }
+    } catch (error) {
+        showRecommenderError('Network error: ' + error.message);
+    } finally {
+        hideProfileLoading();
+    }
+}
+
+// Load recommendations
+async function loadRecommendations(userId, topK) {
+    showRecommendationsLoading();
+    
+    try {
+        const response = await fetch('/get_recommendations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                top_k: topK
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayRecommendations(data.recommendations);
+        } else {
+            showRecommenderError(data.error || 'Failed to generate recommendations');
+        }
+    } catch (error) {
+        showRecommenderError('Network error: ' + error.message);
+    } finally {
+        hideRecommendationsLoading();
+    }
+}
+
+// Display user profile
+function displayUserProfile(movies) {
+    const grid = document.getElementById('user-movies-grid');
+    grid.innerHTML = '';
+    
+    if (!movies || movies.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-film"></i>
+                <h4>No movies found</h4>
+                <p>This user hasn't rated any movies yet.</p>
+            </div>
+        `;
+    } else {
+        movies.forEach(movie => {
+            const movieCard = createMovieCard(movie, true);
+            grid.appendChild(movieCard);
+        });
+    }
+    
+    showUserProfile();
+}
+
+// Display recommendations
+function displayRecommendations(recommendations) {
+    // Content-based recommendations
+    const contentGrid = document.getElementById('content-based-grid');
+    contentGrid.innerHTML = '';
+    
+    if (!recommendations.content_based || recommendations.content_based.length === 0) {
+        contentGrid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-brain"></i>
+                <h4>No content-based recommendations</h4>
+                <p>Unable to generate content-based recommendations for this user.</p>
+            </div>
+        `;
+    } else {
+        recommendations.content_based.forEach(movie => {
+            const movieCard = createMovieCard(movie, false);
+            contentGrid.appendChild(movieCard);
+        });
+    }
+    
+    // Collaborative filtering recommendations
+    const collabGrid = document.getElementById('collaborative-grid');
+    collabGrid.innerHTML = '';
+    
+    if (!recommendations.collaborative || recommendations.collaborative.length === 0) {
+        collabGrid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h4>No collaborative recommendations</h4>
+                <p>Unable to generate collaborative filtering recommendations for this user.</p>
+            </div>
+        `;
+    } else {
+        recommendations.collaborative.forEach(movie => {
+            const movieCard = createMovieCard(movie, false);
+            collabGrid.appendChild(movieCard);
+        });
+    }
+    
+    showRecommendations();
+}
+
+// Create movie card
+function createMovieCard(movie, showRating = false) {
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    
+    const title = document.createElement('div');
+    title.className = 'movie-title';
+    title.textContent = movie.title;
+    
+    const genres = document.createElement('div');
+    genres.className = 'movie-genres';
+    
+    if (movie.genres && movie.genres !== 'Unknown') {
+        const genreList = movie.genres.split('|');
+        genreList.forEach(genre => {
+            const genreTag = document.createElement('span');
+            genreTag.className = 'genre-tag';
+            genreTag.textContent = genre.trim();
+            genres.appendChild(genreTag);
+        });
+    }
+    
+    card.appendChild(title);
+    card.appendChild(genres);
+    
+    if (showRating && movie.rating) {
+        const rating = document.createElement('div');
+        rating.className = 'movie-rating';
+        rating.innerHTML = `<i class="fas fa-star"></i> ${movie.rating}`;
+        card.appendChild(rating);
+    }
+    
+    return card;
+}
+
+// UI state management for recommender system
+function showProfileLoading() {
+    document.getElementById('profile-loading').style.display = 'block';
+}
+
+function hideProfileLoading() {
+    document.getElementById('profile-loading').style.display = 'none';
+}
+
+function showRecommendationsLoading() {
+    document.getElementById('recommendations-loading').style.display = 'block';
+}
+
+function hideRecommendationsLoading() {
+    document.getElementById('recommendations-loading').style.display = 'none';
+}
+
+function showUserProfile() {
+    document.getElementById('user-profile-section').style.display = 'block';
+}
+
+function hideUserProfile() {
+    document.getElementById('user-profile-section').style.display = 'none';
+}
+
+function showRecommendations() {
+    document.getElementById('recommendations-section').style.display = 'block';
+}
+
+function hideRecommendations() {
+    document.getElementById('recommendations-section').style.display = 'none';
+}
+
+function showRecommenderError(message) {
+    document.getElementById('recommender-error-text').textContent = message;
+    document.getElementById('recommender-error-message').style.display = 'flex';
+}
+
+function hideRecommenderError() {
+    document.getElementById('recommender-error-message').style.display = 'none';
+}
+
+// Initialize recommendation system when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeUserDropdown();
+    updateRecommendationValue(document.getElementById('num-recommendations').value);
+}); 

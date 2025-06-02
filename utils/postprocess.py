@@ -19,4 +19,4 @@ def map_movie_id_to_title(frequent_itemsets: Tuple[set, float], movies_file_path
         new_frequent_itemsets.append((tuple(new_itemset), support))
     return new_frequent_itemsets
 
-def map_movie_id_to_title(frequent_itemsets: Tuple[set, float], movies_file_path: str = '/home/hinhnv/Hai/KDLVKP/data_mining_code/data/movielens_1m/movies.csv') -> List[List[str]]:
+# def map_movie_id_to_title(frequent_itemsets: Tuple[set, float], movies_file_path: str = '/home/hinhnv/Hai/KDLVKP/data_mining_code/data/movielens_1m/movies.csv') -> List[List[str]]:

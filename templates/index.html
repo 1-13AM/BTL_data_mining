@@ -136,10 +136,62 @@
         <div id="recommender" class="tab-content">
             <div class="algorithm-section">
                 <h2><i class="fas fa-heart"></i> Recommender Systems</h2>
-                <div class="coming-soon">
-                    <i class="fas fa-tools"></i>
-                    <h3>Coming Soon</h3>
-                    <p>Recommender system algorithms demo will be available soon!</p>
+                
+                <div class="controls-panel">
+                    <div class="control-group">
+                        <label for="user-select">
+                            <i class="fas fa-user"></i> Select User
+                        </label>
+                        <select id="user-select">
+                            <option value="">Choose a user...</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="num-recommendations">
+                            <i class="fas fa-list-ol"></i> Number of Recommendations
+                        </label>
+                        <input type="range" id="num-recommendations" min="5" max="20" value="10" 
+                               oninput="updateRecommendationValue(this.value)">
+                        <span id="recommendation-value">10</span>
+                    </div>
+
+                    <button class="run-button" onclick="loadUserProfile()">
+                        <i class="fas fa-search"></i> Load User Profile
+                    </button>
+                </div>
+
+                <!-- User Profile Section -->
+                <div class="user-profile-section" id="user-profile-section" style="display: none;">
+                    <h3><i class="fas fa-star"></i> User's Top Rated Movies</h3>
+                    <div class="loading" id="profile-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Loading user profile...
+                    </div>
+                    <div class="movies-grid" id="user-movies-grid"></div>
+                </div>
+
+                <!-- Recommendations Section -->
+                <div class="recommendations-section" id="recommendations-section" style="display: none;">
+                    <div class="loading" id="recommendations-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Generating recommendations...
+                    </div>
+
+                    <!-- Content-Based Recommendations -->
+                    <div class="recommendation-type">
+                        <h3><i class="fas fa-brain"></i> Content-Based Filtering Recommendations</h3>
+                        <div class="movies-grid" id="content-based-grid"></div>
+                    </div>
+
+                    <!-- Collaborative Filtering Recommendations -->
+                    <div class="recommendation-type">
+                        <h3><i class="fas fa-users"></i> Collaborative Filtering Recommendations</h3>
+                        <div class="movies-grid" id="collaborative-grid"></div>
+                    </div>
+                </div>
+
+                <div class="error-message" id="recommender-error-message" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="recommender-error-text"></span>
                 </div>
             </div>
         </div>
